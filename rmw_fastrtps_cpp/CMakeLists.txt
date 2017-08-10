@@ -47,6 +47,8 @@ ament_export_dependencies(rosidl_generator_cpp)
 ament_export_dependencies(rosidl_typesupport_introspection_c)
 ament_export_dependencies(rosidl_typesupport_introspection_cpp)
 
+include(cmake/get_rmw_fastrtps_output_filter.cmake)
+
 include_directories(include)
 
 add_library(rmw_fastrtps_cpp
@@ -123,3 +125,6 @@ install(
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+
+get_rmw_fastrtps_output_filter("rmw_fastrtps_output_filter")
+ament_index_register_resource("rmw_output_filter" CONTENT "${rmw_fastrtps_output_filter}")
