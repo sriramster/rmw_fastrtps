@@ -58,6 +58,7 @@ add_library(rmw_fastrtps_cpp
   src/identifier.cpp
   src/namespace_prefix.cpp
   src/qos.cpp
+  src/rmw_logging.cpp
   src/rmw_client.cpp
   src/rmw_compare_gids_equal.cpp
   src/rmw_count.cpp
@@ -79,7 +80,7 @@ add_library(rmw_fastrtps_cpp
   src/rmw_topic_names_and_types.cpp
   src/rmw_trigger_guard_condition.cpp
   src/rmw_wait.cpp
-  src/rmw_waitset.cpp
+  src/rmw_wait_set.cpp
   src/ros_message_serialization.cpp
   src/type_support_common.cpp
 )
@@ -103,9 +104,6 @@ PRIVATE "RMW_FASTRTPS_CPP_BUILDING_LIBRARY")
 
 ament_export_include_directories(include)
 ament_export_libraries(rmw_fastrtps_cpp)
-if(NOT WIN32 AND NOT ANDROID)
-  ament_export_libraries(pthread)
-endif()
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_introspection_c"

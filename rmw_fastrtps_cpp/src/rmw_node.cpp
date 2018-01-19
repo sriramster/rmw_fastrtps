@@ -56,15 +56,13 @@ create_node(
 {
   if (!name) {
     RMW_SET_ERROR_MSG("name is null");
-    return NULL;
+    return nullptr;
   }
 
   if (!namespace_) {
     RMW_SET_ERROR_MSG("namespace_ is null");
-    return NULL;
+    return nullptr;
   }
-
-  eprosima::fastrtps::Log::SetVerbosity(eprosima::fastrtps::Log::Error);
 
   // Declare everything before beginning to create things.
   rmw_guard_condition_t * graph_guard_condition = nullptr;
@@ -77,7 +75,7 @@ create_node(
   Participant * participant = Domain::createParticipant(participantAttrs);
   if (!participant) {
     RMW_SET_ERROR_MSG("create_node() could not create participant");
-    return NULL;
+    return nullptr;
   }
 
   graph_guard_condition = rmw_create_guard_condition();
@@ -127,6 +125,16 @@ create_node(
   node_impl->secondaryPubListener = tnat_2;
 
   edp_readers = participant->getEDPReaders();
+  if (!edp_readers.first) {
+    RMW_SET_ERROR_MSG("edp_readers.first is null");
+    goto fail;
+  }
+
+  if (!edp_readers.second) {
+    RMW_SET_ERROR_MSG("edp_readers.second is null");
+    goto fail;
+  }
+
   if (!(edp_readers.first->setListener(tnat_1) & edp_readers.second->setListener(tnat_2))) {
     RMW_SET_ERROR_MSG("Failed to attach ROS related logic to the Participant");
     goto fail;
@@ -155,7 +163,7 @@ fail:
   if (participant) {
     Domain::removeParticipant(participant);
   }
-  return NULL;
+  return nullptr;
 }
 
 bool
@@ -166,16 +174,24 @@ get_security_file_paths(
   const char * file_names[3] = {"ca.cert.pem", "cert.pem", "key.pem"};
   size_t num_files = sizeof(file_names) / sizeof(char *);
 
-  const char * file_prefix = "file://";
+  std::string file_prefix("file://");
 
-  std::string tmpstr;
   for (size_t i = 0; i < num_files; i++) {
-    tmpstr = std::string(rcutils_join_path(node_secure_root, file_names[i]));
-    if (!rcutils_is_readable(tmpstr.c_str())) {
+    char * file_path = rcutils_join_path(node_secure_root, file_names[i]);
+    if (!file_path) {
       return false;
     }
-    security_files_paths[i] = std::string(file_prefix + tmpstr);
+
+    if (rcutils_is_readable(file_path)) {
+      security_files_paths[i] = file_prefix + std::string(file_path);
+    } else {
+      free(file_path);
+      return false;
+    }
+
+    free(file_path);
   }
+
   return true;
 }
 
@@ -188,7 +204,7 @@ rmw_create_node(
 {
   if (!name) {
     RMW_SET_ERROR_MSG("name is null");
-    return NULL;
+    return nullptr;
   }
   if (!security_options) {
     RMW_SET_ERROR_MSG("security_options is null");
@@ -228,13 +244,13 @@ rmw_create_node(
       participantAttrs.rtps.properties = property_policy;
     } else if (security_options->enforce_security) {
       RMW_SET_ERROR_MSG("couldn't find all security files!");
-      return NULL;
+      return nullptr;
     }
 #else
     RMW_SET_ERROR_MSG(
       "This Fast-RTPS version doesn't have the security libraries\n"
       "Please compile Fast-RTPS using the -DSECURITY=ON CMake option");
-    return NULL;
+    return nullptr;
 #endif
   }
   return create_node(name, namespace_, participantAttrs);
@@ -254,7 +270,7 @@ rmw_destroy_node(rmw_node_t * node)
     return RMW_RET_ERROR;
   }
 
-  CustomParticipantInfo * impl = static_cast<CustomParticipantInfo *>(node->data);
+  auto impl = static_cast<CustomParticipantInfo *>(node->data);
   if (!impl) {
     RMW_SET_ERROR_MSG("node impl is null");
     return RMW_RET_ERROR;
@@ -264,12 +280,17 @@ rmw_destroy_node(rmw_node_t * node)
 
   // Begin deleting things in the same order they were created in rmw_create_node().
   std::pair<StatefulReader *, StatefulReader *> edp_readers = participant->getEDPReaders();
-  if (!edp_readers.first->setListener(nullptr)) {
+  if (!edp_readers.first || !edp_readers.second) {
+    RMW_SET_ERROR_MSG("failed to get EDPReader listener");
+    result_ret = RMW_RET_ERROR;
+  }
+
+  if (edp_readers.first && !edp_readers.first->setListener(nullptr)) {
     RMW_SET_ERROR_MSG("failed to unset EDPReader listener");
     result_ret = RMW_RET_ERROR;
   }
   delete impl->secondarySubListener;
-  if (!edp_readers.second->setListener(nullptr)) {
+  if (edp_readers.second && !edp_readers.second->setListener(nullptr)) {
     RMW_SET_ERROR_MSG("failed to unset EDPReader listener");
     result_ret = RMW_RET_ERROR;
   }
@@ -296,10 +317,10 @@ rmw_destroy_node(rmw_node_t * node)
 const rmw_guard_condition_t *
 rmw_node_get_graph_guard_condition(const rmw_node_t * node)
 {
-  CustomParticipantInfo * impl = static_cast<CustomParticipantInfo *>(node->data);
+  auto impl = static_cast<CustomParticipantInfo *>(node->data);
   if (!impl) {
     RMW_SET_ERROR_MSG("node impl is null");
-    return NULL;
+    return nullptr;
   }
   return impl->graph_guard_condition;
 }
